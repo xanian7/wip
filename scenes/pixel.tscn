@@ -1,0 +1,17 @@
+[gd_scene load_steps=4 format=3 uid="uid://df6wlxyuaxggk"]
+
+[ext_resource type="Script" uid="uid://b06e33mphkcve" path="res://scripts/pixel.gd" id="1_tapjd"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_tapjd"]
+size = Vector2(1, 1)
+
+[sub_resource type="CanvasTexture" id="CanvasTexture_tapjd"]
+
+[node name="pixel" type="RigidBody2D"]
+script = ExtResource("1_tapjd")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_tapjd")
+
+[node name="Sprite2D" type="Sprite2D" parent="CollisionShape2D"]
+texture = SubResource("CanvasTexture_tapjd")
