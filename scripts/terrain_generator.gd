@@ -24,25 +24,11 @@ static func generate_terrain(sim: SandSimulation, seed_val: int = 0) -> void:
 		var noise_val: float = noise.get_noise_1d(col)
 		var terrain_height: int = int(terrain_base + noise_val * terrain_variation)
 		
-		# Fill from terrain surface down
-		for row in range(terrain_height, height):
-			var depth: int = row - terrain_height
-			var element_id: int = 0
-			
-			if depth == 0:
-				# Sand layer on top
-				element_id = 1
-			elif depth < 8:
-				# More sand
-				element_id = 1
-			elif depth < 15:
-				# Gravel mixed in
-				if randf() > 0.7:
-					element_id = 2
-				else:
-					element_id = 1
-			else:
-				# Stone at depth
-				element_id = 3
-			
-			sim.set_cell(row, col, element_id)
+		# Place grass on surface
+		if terrain_height < height:
+			sim.set_cell(terrain_height, col, 4)  # Grass on top
+		
+		# Fill from just below surface down (no sand for now)
+		for row in range(terrain_height + 1, height):
+			# Use stone everywhere below grass so terrain stays static
+			sim.set_cell(row, col, 3)

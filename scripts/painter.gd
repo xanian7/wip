@@ -7,7 +7,7 @@ class_name Painter
 var sim
 var canvas
 
-var selected_element: int = 1  # Default to sand
+var selected_element: int = 4  # Default to grass
 var brush_size: int = 5
 var press_released: bool = true
 var start_draw: Vector2
@@ -64,15 +64,15 @@ func draw_circle(x: float, y: float, radius: float) -> void:
 				draw_pixel(row_i + row_offset, col_i + col_offset)
 
 func draw_pixel(row: int, col: int) -> void:
-	# Add some randomness for powder elements (element 1 = sand in C++ extension)
-	if selected_element == 1 and randf() > 0.1:
-		return
-	
 	if not sim.in_bounds(row, col):
 		return
 	
-	# C++ draw_cell marks visited=false to allow immediate physics interaction
-	sim.draw_cell(row, col, selected_element)
+	# Place solids via set_cell so they stay static until interacted with
+	if selected_element == 3 or selected_element == 4:
+		sim.set_cell(row, col, selected_element)
+	else:
+		# Fluids (e.g., water) should flow immediately
+		sim.draw_cell(row, col, selected_element)
 
 func clear() -> void:
 	for row in range(sim.get_height()):

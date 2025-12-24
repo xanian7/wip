@@ -77,6 +77,11 @@ func initialize_colors() -> void:
 			Color(0.5, 0.5, 0.5, 1.0).to_rgba32(),
 			Color(0.4, 0.4, 0.4, 1.0).to_rgba32(),
 			Color(0.3, 0.3, 0.3, 1.0).to_rgba32()
+		],
+		4: [  # Grass
+			Color(0.2, 0.8, 0.2, 1.0).to_rgba32(),
+			Color(0.15, 0.7, 0.15, 1.0).to_rgba32(),
+			Color(0.1, 0.5, 0.1, 1.0).to_rgba32()
 		]
 	}
 	sim.initialize_fluid_color(fluid_colors)
@@ -134,13 +139,16 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_1:
-				painter.selected_element = 1  # Sand
+				painter.selected_element = 4  # Grass (disable sand)
 				get_tree().root.set_input_as_handled()
 			KEY_2:
 				painter.selected_element = 2  # Water
 				get_tree().root.set_input_as_handled()
 			KEY_3:
 				painter.selected_element = 3  # Stone
+				get_tree().root.set_input_as_handled()
+			KEY_4:
+				painter.selected_element = 4  # Grass
 				get_tree().root.set_input_as_handled()
 			KEY_0:
 				painter.selected_element = 0  # Eraser

@@ -21,21 +21,21 @@ public:
             return;
         }
 
-        if (sim->randf() < GROW) {
-            int newCol = col;
-            double r = sim->randf();
-            if (r < LEFT) {
-                newCol--;
-            } else if (r < RIGHT) {
-                newCol++;
-            }
+        // if (sim->randf() < GROW) {
+        //     int newCol = col;
+        //     double r = sim->randf();
+        //     if (r < LEFT) {
+        //         newCol--;
+        //     } else if (r < RIGHT) {
+        //         newCol++;
+        //     }
 
-            sim->grow(row - 1, newCol, 0, 14);
-            sim->grow(row - 1, newCol, 3, 14);
-            sim->grow(row - 1, newCol, 11, 14);
-            sim->grow(row - 1, newCol, 12, 14);
-            sim->grow(row - 1, newCol, 13, 14);
-        }
+        //     sim->grow(row - 1, newCol, 0, 14);
+        //     sim->grow(row - 1, newCol, 3, 14);
+        //     sim->grow(row - 1, newCol, 11, 14);
+        //     sim->grow(row - 1, newCol, 12, 14);
+        //     sim->grow(row - 1, newCol, 13, 14);
+        // }
     }
 
     double get_density() override {
