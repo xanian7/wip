@@ -1,92 +1,153 @@
 extends Node2D
 
-@export var world_size: Vector2 = Vector2(1000, 100)
-@export var pixel_scene: PackedScene
-@export var terrain_height: float = 20.0  # Base terrain height
-@export var terrain_roughness: float = 10.0  # How much height varies
-@export var pixel_size: Vector2 = Vector2(1, 1)
+# Main simulation controller using sand-slide architecture
+# Manages SandSim, Canvas rendering, and Painter input
 
-var noise: FastNoiseLite
+@export var simulation_speed: int = 1
+@export var canvas_scale: int = 3
 
-# Called when the node enters the scene tree for the first time.
-func _ready():
-	setup_noise()
-	generate_world()
+var sim
+var canvas
+var painter
+var active: bool = false
+var fps_label: Label
+var frame_times: PackedFloat32Array = PackedFloat32Array()
+var current_frame: int = 0
 
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(_delta):
-	pass
+func _ready() -> void:
+	# Create C++ simulation (much faster!)
+	sim = SandSimulation.new()
+	sim.set_chunk_size(16)
+	sim.resize(300, 200)
+	
+	# Initialize color system (required by C++ extension)
+	initialize_colors()
+	
+	# Setup canvas (TextureRect node)
+	canvas = Canvas.new()
+	canvas.px_scale = canvas_scale
+	canvas.position = Vector2.ZERO
+	canvas.size = Vector2(sim.get_width() * canvas_scale, sim.get_height() * canvas_scale)
+	add_child(canvas)
+	
+	# Setup painter
+	painter = Painter.new()
+	add_child(painter)
+	
+	# Wait one frame for nodes to initialize
+	await get_tree().process_frame
+	
+	# Now setup simulation connections
+	canvas.setup_simulation(sim)
+	painter.setup(sim, canvas)
+	
+	# Setup FPS counter
+	fps_label = Label.new()
+	fps_label.add_theme_font_size_override("font_size", 24)
+	add_child(fps_label)
+	
+	# Generate procedural terrain
+	TerrainGenerator.generate_terrain(sim, 12345)
+	canvas.repaint()
+	
+	# Start simulation
+	active = true
 
-func setup_noise() -> void:
-	noise = FastNoiseLite.new()
-	noise.seed = randi()  # Random seed each time
-	noise.frequency = 0.02  # Lower = smoother terrain
+func initialize_colors() -> void:
+	# Initialize color dictionaries required by C++ extension
+	var flat_colors: Dictionary = {
+		0: Color(0.1, 0.1, 0.1, 1.0).to_rgba32(),  # Empty/background
+		15: Color(0.3, 0.3, 0.3, 1.0).to_rgba32()  # Wall
+	}
+	sim.initialize_flat_color(flat_colors)
+	
+	# Fluid colors (for powder and liquid elements)
+	var fluid_colors: Dictionary = {
+		1: [  # Sand
+			Color(0.8, 0.7, 0.3, 1.0).to_rgba32(),
+			Color(0.7, 0.6, 0.2, 1.0).to_rgba32(),
+			Color(0.6, 0.5, 0.1, 1.0).to_rgba32()
+		],
+		2: [  # Water
+			Color(0.2, 0.4, 0.8, 1.0).to_rgba32(),
+			Color(0.15, 0.35, 0.7, 1.0).to_rgba32(),
+			Color(0.1, 0.2, 0.5, 1.0).to_rgba32()
+		],
+		3: [  # Stone
+			Color(0.5, 0.5, 0.5, 1.0).to_rgba32(),
+			Color(0.4, 0.4, 0.4, 1.0).to_rgba32(),
+			Color(0.3, 0.3, 0.3, 1.0).to_rgba32()
+		]
+	}
+	sim.initialize_fluid_color(fluid_colors)
+	
+	# Initialize empty dicts for other color types
+	sim.initialize_gradient_color({})
+	sim.initialize_metal_color({})
+
+func _process(delta: float) -> void:
+	if active:
+		sim.step(simulation_speed)
+		canvas.repaint()
+	
+	# Update FPS counter
+	frame_times.append(delta)
+	current_frame += 1
+	if current_frame % 10 == 0:
+		var avg_delta: float = 0.0
+		for t in frame_times:
+			avg_delta += t
+		avg_delta /= frame_times.size()
+		var fps: int = int(1.0 / avg_delta) if avg_delta > 0 else 0
+		fps_label.text = "FPS: %d" % fps
+		frame_times.clear()
+
+func generate_initial_terrain() -> void:
+	var noise := FastNoiseLite.new()
+	noise.seed = randi()
+	noise.frequency = 0.02
 	noise.noise_type = FastNoiseLite.TYPE_PERLIN
-
-func _input(event):
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		generate_pixel()
-
-'''
-Generates a grid of pixels based on the world_size variable.
-Each pixel is represented as a small colored square with physics properties.
-On generation, pixels are placed in a grid layout and should not move until interacted with.
-'''
-func generate_world() -> void:
-	for x in range(world_size.x):
-		# Get terrain height at this X position using noise
-		var height_value = noise.get_noise_1d(x)  # Returns -1 to 1
-		var terrain_y = int(terrain_height + (height_value * terrain_roughness))
+	
+	var terrain_base: int = 20
+	var terrain_variation: int = 10
+	
+	# Generate terrain from noise
+	for col in range(sim.get_width()):
+		var noise_val: float = noise.get_noise_1d(col)
+		var terrain_height: int = int(terrain_base + noise_val * terrain_variation)
 		
-		# Generate pixels from terrain surface down to bottom
-		for y in range(terrain_y, world_size.y):
-			var depth = y - terrain_y  # Distance from surface
-			generate_pixel_at_position(Vector2(int(x*pixel_size.x), int(y*pixel_size.y)), depth)
+		# Fill from terrain surface down
+		for row in range(terrain_height, sim.get_height()):
+			var depth: int = row - terrain_height
+			var element_id: int = 0
+			
+			if depth == 0:
+				element_id = 1  # Sand on top
+			elif depth < 5:
+				element_id = 1  # More sand
+			else:
+				element_id = 3  # Stone below
+			
+			sim.set_cell(row, col, element_id)
 
-'''
-Generates a pixel at a specific position in the world.
-Should not move until interacted with.
-@param position: The position where the pixel should be generated.
-@param depth: The Y index (depth layer) for color selection.
-'''
-func generate_pixel_at_position(position: Vector2, depth: int = 0) -> void:
-	var pixel = pixel_scene.instantiate()
-	# Ensure exact integer positioning
-	pixel.position = Vector2(int(position.x), int(position.y))
-	pixel.freeze = true  # Freeze before adding to scene
-	pixel.pixel_size = pixel_size
-	
-	# Assign color based on depth layer
-	if depth == 0:
-		pixel.pixel_color = Color(0.2 + randf() * 0.2, 0.6 + randf() * 0.2, 0.2 + randf() * 0.2)  # Green grass
-	elif depth <= 3:
-		pixel.pixel_color = Color(0.4 + randf() * 0.2, 0.25 + randf() * 0.15, 0.1 + randf() * 0.1)  # Brown dirt
-	else:
-		pixel.pixel_color = Color(0.4 + randf() * 0.2, 0.4 + randf() * 0.2, 0.4 + randf() * 0.2)  # Grey stone
-	
-	add_child(pixel)
-
-func generate_pixel() -> void:
-	# Create a RigidBody2D for physics
-	var pixel = RigidBody2D.new()
-	pixel.position = get_local_mouse_position()
-	
-	# Create a visual representation (small square)
-	var visual = ColorRect.new()
-	visual.size = Vector2(4, 4)
-	visual.position = -visual.size / 2  # Center the visual
-	visual.color = Color(randf(), randf(), randf())  # Random color
-	
-	# Create a collision shape
-	var collision = CollisionShape2D.new()
-	var shape = RectangleShape2D.new()
-	shape.size = Vector2(4, 4)
-	collision.shape = shape
-	collision.position = Vector2.ZERO  # Center the collision
-	
-	# Add components to the pixel
-	pixel.add_child(visual)
-	pixel.add_child(collision)
-	
-	# Add the pixel to the scene
-	add_child(pixel)
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed:
+		match event.keycode:
+			KEY_1:
+				painter.selected_element = 1  # Sand
+				get_tree().root.set_input_as_handled()
+			KEY_2:
+				painter.selected_element = 2  # Water
+				get_tree().root.set_input_as_handled()
+			KEY_3:
+				painter.selected_element = 3  # Stone
+				get_tree().root.set_input_as_handled()
+			KEY_0:
+				painter.selected_element = 0  # Eraser
+				get_tree().root.set_input_as_handled()
+			KEY_C:
+				painter.clear()
+				get_tree().root.set_input_as_handled()
+			KEY_SPACE:
+				active = not active
+				get_tree().root.set_input_as_handled()
