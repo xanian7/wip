@@ -35,6 +35,7 @@ SandSimulation::SandSimulation() {
     draw_data.resize(width * height * 3);
 
     visited.resize(width * height);
+    frozen.resize(width * height);
     cells.resize(width * height);
     chunks.resize(chunk_width * chunk_height);
 }
@@ -59,6 +60,9 @@ void SandSimulation::step(int iterations) {
                     
                     if (visited[r_row * width + r_col]) {
                         visited[r_row * width + r_col] = false;
+                    } else if (frozen[r_row * width + r_col]) {
+                        // Skip physics for frozen particles
+                        continue;
                     } else {
                         // Elements (including custom) are stored using numbers 0 - 4096
                         // Taps share the ID of their spawn material, but offset by 4097
@@ -246,6 +250,7 @@ void SandSimulation::set_cell(int row, int col, int type) {
         chunks[(row / chunk_size) * chunk_width + (col / chunk_size)]--;
     
     visited[row * width + col] = type != 0;
+    frozen[row * width + col] = false;  // Clear frozen flag when setting new cell
     cells[row * width + col] = type;
 }
 
@@ -274,6 +279,9 @@ void SandSimulation::resize(int new_width, int new_height) {
     
     visited.clear();
     visited.resize(new_width * new_height);
+    
+    frozen.clear();
+    frozen.resize(new_width * new_height);
 
     chunk_width = (int) std::ceil(new_width / (float) chunk_size);
     chunk_height = (int) std::ceil(new_height / (float) chunk_size);
@@ -564,6 +572,16 @@ void SandSimulation::initialize_custom_elements(Dictionary dict) {
     }
 }
 
+void SandSimulation::freeze_cell(int row, int col) {
+    if (!in_bounds(row, col)) return;
+    frozen[row * width + col] = true;
+}
+
+void SandSimulation::unfreeze_cell(int row, int col) {
+    if (!in_bounds(row, col)) return;
+    frozen[row * width + col] = false;
+}
+
 void SandSimulation::_bind_methods() {
     ClassDB::bind_method(D_METHOD("step"), &SandSimulation::step);
     ClassDB::bind_method(D_METHOD("in_bounds"), &SandSimulation::in_bounds);
@@ -583,4 +601,7 @@ void SandSimulation::_bind_methods() {
     ClassDB::bind_method(D_METHOD("initialize_gradient_color"), &SandSimulation::initialize_gradient_color);
     ClassDB::bind_method(D_METHOD("initialize_fluid_color"), &SandSimulation::initialize_fluid_color);
     ClassDB::bind_method(D_METHOD("initialize_metal_color"), &SandSimulation::initialize_metal_color);
+    
+    ClassDB::bind_method(D_METHOD("freeze_cell"), &SandSimulation::freeze_cell);
+    ClassDB::bind_method(D_METHOD("unfreeze_cell"), &SandSimulation::unfreeze_cell);
 }

@@ -85,6 +85,9 @@ public:
     // Marks what cells are visited to not process them multiple times in one frame
     std::vector<bool> visited;
 
+    // Marks what cells are frozen and should not process physics
+    std::vector<bool> frozen;
+
     // Contains the identity of the particles on the grid
     std::vector<int> cells;
 
@@ -130,6 +133,8 @@ public:
     int get_cell(int row, int col);
     void set_cell(int row, int col, int type);
     void draw_cell(int row, int col, int type);
+    void freeze_cell(int row, int col);
+    void unfreeze_cell(int row, int col);
     int get_chunk(int c);
     int get_width();
     int get_height();

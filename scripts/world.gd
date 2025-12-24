@@ -62,21 +62,22 @@ func initialize_colors() -> void:
 	sim.initialize_flat_color(flat_colors)
 	
 	# Fluid colors (for powder and liquid elements)
+	# IMPORTANT: IDs must match C++ extension: 0=Void, 1=Sand, 2=Rock, 3=Water
 	var fluid_colors: Dictionary = {
 		1: [  # Sand
 			Color(0.8, 0.7, 0.3, 1.0).to_rgba32(),
 			Color(0.7, 0.6, 0.2, 1.0).to_rgba32(),
 			Color(0.6, 0.5, 0.1, 1.0).to_rgba32()
 		],
-		2: [  # Water
-			Color(0.2, 0.4, 0.8, 1.0).to_rgba32(),
-			Color(0.15, 0.35, 0.7, 1.0).to_rgba32(),
-			Color(0.1, 0.2, 0.5, 1.0).to_rgba32()
-		],
-		3: [  # Stone
+		2: [  # Rock (Stone)
 			Color(0.5, 0.5, 0.5, 1.0).to_rgba32(),
 			Color(0.4, 0.4, 0.4, 1.0).to_rgba32(),
 			Color(0.3, 0.3, 0.3, 1.0).to_rgba32()
+		],
+		3: [  # Water
+			Color(0.2, 0.4, 0.8, 1.0).to_rgba32(),
+			Color(0.15, 0.35, 0.7, 1.0).to_rgba32(),
+			Color(0.1, 0.2, 0.5, 1.0).to_rgba32()
 		],
 		4: [  # Grass
 			Color(0.2, 0.8, 0.2, 1.0).to_rgba32(),
@@ -139,15 +140,26 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_1:
-				painter.selected_element = 4  # Grass (disable sand)
+				painter.selected_element = 1  # Sand
 				get_tree().root.set_input_as_handled()
 			KEY_2:
-				painter.selected_element = 2  # Water
+				painter.selected_element = 2  # Rock (Stone)
 				get_tree().root.set_input_as_handled()
 			KEY_3:
-				painter.selected_element = 3  # Stone
+				painter.selected_element = 3  # Water
 				get_tree().root.set_input_as_handled()
 			KEY_4:
+				painter.selected_element = 4  # Grass
+				get_tree().root.set_input_as_handled()
+			KEY_0:
+				painter.selected_element = 0  # Eraser
+				get_tree().root.set_input_as_handled()
+			KEY_C:
+				painter.clear()
+				get_tree().root.set_input_as_handled()
+			KEY_SPACE:
+				active = not active
+				get_tree().root.set_input_as_handled()
 				painter.selected_element = 4  # Grass
 				get_tree().root.set_input_as_handled()
 			KEY_0:

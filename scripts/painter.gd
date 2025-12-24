@@ -67,12 +67,13 @@ func draw_pixel(row: int, col: int) -> void:
 	if not sim.in_bounds(row, col):
 		return
 	
-	# Place solids via set_cell so they stay static until interacted with
-	if selected_element == 3 or selected_element == 4:
-		sim.set_cell(row, col, selected_element)
-	else:
-		# Fluids (e.g., water) should flow immediately
-		sim.draw_cell(row, col, selected_element)
+	# Place particle
+	sim.set_cell(row, col, selected_element)
+	
+	if selected_element == 2 or selected_element == 4:
+		# Freeze solids (Rock=2, Grass=4)
+		sim.freeze_cell(row, col)
+	# Sand (1) and Water (3) stay unfrozen to flow/fall
 
 func clear() -> void:
 	for row in range(sim.get_height()):
